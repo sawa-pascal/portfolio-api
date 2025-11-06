@@ -1,12 +1,15 @@
 <?php
 require_once '../db.php';
 
+// 入力取得
+$input = json_decode(file_get_contents("php://input"), true);
+
 // ユーザーIDをPOSTから取得（なければnull）
-$user_id = $_POST['user_id'] ?? null;
+$user_id = $input['user_id'] ?? null;
 
 $response = [
     'success' => false,
-    'purchase_history' => []
+    'purchase_history' => [],
 ];
 
 if ($user_id) {
