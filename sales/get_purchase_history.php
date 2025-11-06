@@ -30,7 +30,30 @@ if ($user_id) {
     $stmt = $pdo->prepare($sql);
 
     if ($stmt->execute([$user_id])) {
-        $purchase_history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // sale_idごとにグループ化
+        $grouped = [];
+        foreach ($rows as $row) {
+            $sale_id = $row['sale_id'];
+            if (!isset($grouped[$sale_id])) {
+                $grouped[$sale_id] = [
+                    'sale_id' => $sale_id,
+                    'date' => $row['date'],
+                    'data' => [],
+                ];
+            }
+            $grouped[$sale_id]['data'][] = [
+                'item_image_url' => $row['item_image_url'],
+                'item_name' => $row['item_name'],
+                'price' => $row['price'],
+                'quantity' => $row['quantity'],
+            ];
+        }
+
+        // インデックスなし配列に
+        $purchase_history = array_values($grouped);
+
         $response['success'] = true;
         $response['purchase_history'] = $purchase_history;
     }
