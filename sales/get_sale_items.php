@@ -17,6 +17,7 @@ if ($sale_id) {
             si.id,
             s.date,
             s.user_id,
+            si.item_id,
             i.image_url AS item_image_url,
             i.name AS item_name,
             si.price,
