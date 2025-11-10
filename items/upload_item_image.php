@@ -38,7 +38,8 @@ function handle_upload($image_url, $category_name) {
     }
 
     // ファイル名生成
-    $image = uniqid(mt_rand(), true);
+    // 日付＋ユニークID
+    $image = date("Y-m-d-H-i-s-") . uniqid(mt_rand(), false);
     $ext = pathinfo($_FILES['upfile']['name'], PATHINFO_EXTENSION);
     if (!$ext) {
         $ext = 'png'; // デフォルト拡張子
@@ -53,6 +54,10 @@ function handle_upload($image_url, $category_name) {
 
     $server_path = $images_dir . $image;
 
+    if (!move_uploaded_file($_FILES['upfile']['tmp_name'], $server_path)) {
+        json_response(false, "ファイルの保存に失敗しました");
+    }
+
     // 古い画像削除
     if (!empty($image_url)) {
         $old_image_path = dirname(__DIR__, 2) . '/tmp_image/' . $image_url;
@@ -62,10 +67,6 @@ function handle_upload($image_url, $category_name) {
             // 空ディレクトリクリーン
             cleanup_dir_if_empty(dirname($old_image_path));
         }
-    }
-
-    if (!move_uploaded_file($_FILES['upfile']['tmp_name'], $server_path)) {
-        json_response(false, "ファイルの保存に失敗しました");
     }
 
     // アップロード結果が画像かチェック
