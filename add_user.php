@@ -45,7 +45,8 @@ if ($name && $email && $tel && $prefecture_id && $address && $password) {
             $response["message"] = "ユーザ登録に失敗しました";
         }
     } else {
-        $response["message"] = "同じメールアドレスですで登録されているアカウントが存在します";
+        $response["message"] = "同じメールアドレスで,
+        すでに登録されているアカウントが存在します";
     }
 } else {
     $response["message"] = "必須項目が入力されていません";
