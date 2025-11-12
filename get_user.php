@@ -13,7 +13,7 @@ if (!$password) {
     echo json_encode(["success" => false, "message" => "password is required"]);
     exit;
 }
-$sql = "SELECT * FROM users WHERE email = ?";
+$sql = "SELECT * FROM users WHERE email = BINARY ?";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$email]);
