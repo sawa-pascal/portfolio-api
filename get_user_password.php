@@ -8,7 +8,7 @@ if (!$email) {
     exit;
 }
 
-$sql = "SELECT hashed_password FROM users WHERE email = ?";
+$sql = "SELECT hashed_password FROM users WHERE email = BINARY ?";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$email]);

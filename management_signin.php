@@ -13,15 +13,19 @@ if (!$hashed_password) {
     echo json_encode(["success" => false, "message" => "hashed_password is required"]);
     exit;
 }
-$sql = "SELECT * FROM administrator WHERE name = ? AND hashed_password = ?";
+$sql = "SELECT * FROM administrator WHERE name = BINARY ?";
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute([$name, $hashed_password]);
+$stmt->execute([$name]);
 $user = $stmt->fetch();
 
 if ($user)
 {
+    if ($user['hashed_password'] == $hashed_password){
     echo json_encode(["success" => true, "user" => $user]);
+    }else{
+        echo json_encode(["success" => false, "message" => "パスワードが違います".$hashed_password]);
+    }
 }
 else
 {
