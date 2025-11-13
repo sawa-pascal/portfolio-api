@@ -36,21 +36,28 @@ try {
     $pdo->beginTransaction();
 
     // 売上テーブル挿入
-    $sql_sale = "INSERT INTO sales (user_id, payment_id) VALUES (?, ?)";
-    $stmt = $pdo->prepare($sql_sale);
-    $stmt->execute([$user_id, $payment_id]);
+    $stmt_sale = $pdo->prepare("INSERT INTO sales (user_id, payment_id) VALUES (?, ?)");
+    $stmt_sale->execute([$user_id, $payment_id]);
     $sale_id = $pdo->lastInsertId();
 
-    // 商品価格取得クエリ
-    $stmt_item = $pdo->prepare('SELECT id, price FROM items WHERE id = ?');
-    // 売上明細挿入
-    $stmt_detail = $pdo->prepare("INSERT INTO sale_items (sale_id, item_id, price, quantity) VALUES (?, ?, ?, ?)");
+    // 商品情報・在庫取得・明細・在庫更新 クエリを事前用意
+    $stmt_item   = $pdo->prepare(
+        'SELECT i.id, i.price, s.quantity FROM items AS i JOIN stocks AS s ON i.id = s.item_id WHERE i.id = ?'
+    );
+    $stmt_detail = $pdo->prepare(
+        "INSERT INTO sale_items (sale_id, item_id, price, quantity) VALUES (?, ?, ?, ?)"
+    );
+    $stmt_stock  = $pdo->prepare(
+        "UPDATE stocks SET quantity = ? WHERE item_id = ?"
+    );
 
     foreach ($item_ids as $idx => $item_id) {
-        // $idx（foreachの回数=インデックス）を使ってquantitiesから取得
         $quantity = isset($quantities[$idx]) ? (int)$quantities[$idx] : 0;
-        if ($quantity <= 0) continue;
+        if ($quantity <= 0) {
+            continue; // 数量不正はスキップ
+        }
 
+        // 商品・在庫取得
         $stmt_item->execute([$item_id]);
         $item = $stmt_item->fetch(PDO::FETCH_ASSOC);
 
@@ -59,8 +66,15 @@ try {
             json_response(false, "Invalid item_id or item not found: {$item_id}");
         }
 
-        $price = $item['price'];
-        $stmt_detail->execute([$sale_id, $item_id, $price, $quantity]);
+        if (!isset($item['quantity']) || $item['quantity'] < $quantity) {
+            $pdo->rollBack();
+            json_response(false, "在庫がない: {$item_id}");
+        }
+
+        // 売上明細・在庫更新
+        $stmt_detail->execute([$sale_id, $item_id, $item['price'], $quantity]);
+        $new_quantity = $item['quantity'] - $quantity;
+        $stmt_stock->execute([$new_quantity, $item_id]);
     }
 
     $pdo->commit();
