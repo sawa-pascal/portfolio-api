@@ -122,28 +122,45 @@ function handle_image_move(&$image_url, $category_id, $origin_image_url, PDO $pd
 $input = json_decode(file_get_contents("php://input"), true);
 
 try {
-    $id          = get_required($input, 'id');
-    $name        = get_required($input, 'name');
-    $price       = get_required($input, 'price');
-    $category_id = get_required($input, 'category_id');
-    $description      = isset($input['description']) ? $input['description'] : '';
-    $image_url        = isset($input['image_url']) ? $input['image_url'] : '';
+    // 必須パラメータ取得
+    $id             = get_required($input, 'id');
+    $name           = get_required($input, 'name');
+    $price          = get_required($input, 'price');
+    $stock          = get_required($input, 'stock');
+    $category_id    = get_required($input, 'category_id');
+    $description    = isset($input['description']) ? $input['description'] : '';
+    $image_url      = isset($input['image_url']) ? $input['image_url'] : '';
     $origin_image_url = isset($input['origin_image_url']) ? $input['origin_image_url'] : '';
 
-    // image_urlが空でなければ必ず handle_image_move に通す（category_id のみ変更時も通る必要がある）
+    // 画像処理（必要に応じて画像移動・パス調整）
     if (!empty($image_url)) {
         handle_image_move($image_url, $category_id, $origin_image_url, $pdo);
     }
 
-    // DB更新
-    $stmt = $pdo->prepare("
-        UPDATE items 
-        SET name = ?, price = ?, description = ?, image_url = ?, category_id = ?
-        WHERE id = ?
-    ");
-    $stmt->execute([$name, $price, $description, $image_url, $category_id, $id]);
-    json_response(true, "商品を更新しました");
+    // トランザクション開始
+    $pdo->beginTransaction();
 
+    try {
+        // itemsテーブル更新
+        $stmt = $pdo->prepare("
+            UPDATE items 
+            SET name = ?, price = ?, description = ?, image_url = ?, category_id = ?
+            WHERE id = ?
+        ");
+        $stmt->execute([$name, $price, $description, $image_url, $category_id, $id]);
+
+        // stocksテーブル更新
+        if ($stock !== null) {
+            $stmt_stocks = $pdo->prepare("UPDATE stocks SET quantity = ? WHERE item_id = ?");
+            $stmt_stocks->execute([$stock, $id]);
+        }
+
+        $pdo->commit();
+        json_response(true, "商品を更新しました");
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        json_response(false, "更新に失敗しました: " . $e->getMessage());
+    }
 } catch (Exception $e) {
     json_response(false, "更新に失敗しました: " . $e->getMessage());
 }

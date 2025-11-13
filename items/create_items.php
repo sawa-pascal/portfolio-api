@@ -14,7 +14,7 @@
 $allowed_origins = [
     'http://localhost:4200',
     'http://localhost:8080',
-    'http://localhost:54551',
+    'http://localhost:59949',
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -105,22 +105,44 @@ function move_uploaded_image(?string $image_url): ?string {
 }
 
 try {
+    // 入力値の取得と検証
     $input = json_decode(file_get_contents("php://input"), true);
 
-    $name = get_required_input($input, 'name');
-    $price = get_required_input($input, 'price');
+    $name        = get_required_input($input, 'name');
+    $price       = get_required_input($input, 'price');
+    $stock       = get_required_input($input, 'stock');
     $category_id = get_required_input($input, 'category_id');
     $description = $input['description'] ?? null;
-    $image_url = $input['image_url'] ?? null;
+    $image_url   = $input['image_url'] ?? null;
 
+    // 画像の移動処理
     $image_url = move_uploaded_image($image_url);
 
-    $stmt = $pdo->prepare(
-        "INSERT INTO items (name, price, description, image_url, category_id) VALUES (?, ?, ?, ?, ?)"
-    );
-    $stmt->execute([$name, $price, $description, $image_url, $category_id]);
+    // トランザクション開始
+    $pdo->beginTransaction();
 
-    json_response(true, "商品を追加しました");
+    try {
+        // itemsテーブルへ登録
+        $sql_items = "INSERT INTO items (name, price, description, image_url, category_id) VALUES (?, ?, ?, ?, ?)";
+        $stmt_items = $pdo->prepare($sql_items);
+        $stmt_items->execute([$name, $price, $description, $image_url, $category_id]);
+
+        // アイテムIDの取得
+        $item_id = $pdo->lastInsertId();
+
+        // stocksテーブルへ登録
+        $sql_stocks = "INSERT INTO stocks (item_id, quantity) VALUES (?, ?)";
+        $stmt_stocks = $pdo->prepare($sql_stocks);
+        $stmt_stocks->execute([$item_id, $stock]);
+
+        // コミット
+        $pdo->commit();
+        json_response(true, "商品を追加しました");
+    } catch (Exception $e) {
+        // ロールバック
+        $pdo->rollBack();
+        json_response(false, "商品登録に失敗しました: " . $e->getMessage());
+    }
 } catch (Exception $e) {
     json_response(false, "予期しないエラー: " . $e->getMessage());
 }
