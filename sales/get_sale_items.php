@@ -16,7 +16,8 @@ if ($sale_id) {
         SELECT
             si.id,
             s.date,
-            s.user_id,
+            u.id AS user_id,
+            u.name AS user_name,
             si.item_id,
             i.image_url AS item_image_url,
             i.name AS item_name,
@@ -25,6 +26,7 @@ if ($sale_id) {
         FROM sale_items si
         INNER JOIN sales s ON si.sale_id = s.id
         INNER JOIN items i ON si.item_id = i.id
+        INNER JOIN users u ON s.user_id = u.id
         WHERE si.sale_id = ?
     ";
     $stmt = $pdo->prepare($sql);
